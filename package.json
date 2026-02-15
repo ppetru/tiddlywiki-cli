@@ -11,6 +11,7 @@
   },
   "optionalDependencies": {
     "better-sqlite3": "^11.0.0",
+    "gpt-tokenizer": "^2.0.0",
     "sqlite-vec": "^0.1.0"
   },
   "agentskills": {

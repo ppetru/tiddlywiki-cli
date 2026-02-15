@@ -39,9 +39,13 @@ async function loadConfig() {
 function getWikiConfig(config, name) {
   const wiki = config[name];
   if (!wiki) {
-    const available = Object.keys(config).join(", ");
+    const available = Object.keys(config)
+      .filter((k) => k !== "ollama_url")
+      .join(", ");
     die(`Unknown wiki "${name}". Available: ${available}`);
   }
+  // Attach top-level ollama_url so subcommands can access it
+  wiki.__ollamaUrl = config.ollama_url || "http://localhost:11434";
   return wiki;
 }
 
@@ -320,6 +324,76 @@ async function cmdDelete(baseUrl, wiki, args) {
   out({ ok: true, title, action: "deleted" });
 }
 
+async function loadSemantic() {
+  try {
+    return await import("./lib/semantic.js");
+  } catch (err) {
+    if (err.message?.includes("not installed")) die(err.message);
+    die(
+      `Semantic search requires optional dependencies.\nRun: cd ${__dirname} && npm install\n\n${err.message}`
+    );
+  }
+}
+
+function requireEmbeddingsDb(wikiConfig, wikiName) {
+  if (!wikiConfig.embeddings_db) {
+    die(
+      `No embeddings_db configured for wiki "${wikiName}".\nAdd "embeddings_db": "/path/to/wiki.db" to wikis.json`
+    );
+  }
+  return wikiConfig.embeddings_db;
+}
+
+function getOllamaUrl(config) {
+  return config.__ollamaUrl || "http://localhost:11434";
+}
+
+async function cmdSemantic(baseUrl, wikiName, wikiConfig, args) {
+  const query = args[0];
+  if (!query) die("Usage: tw <wiki> semantic '<query>' [--filter '<pre-filter>'] [--limit N]");
+
+  const opts = parseOpts(args.slice(1));
+  const limit = opts.fields.limit ? parseInt(opts.fields.limit, 10) : 10;
+  const dbPath = requireEmbeddingsDb(wikiConfig, wikiName);
+  const ollamaUrl = getOllamaUrl(wikiConfig);
+
+  const sem = await loadSemantic();
+
+  // If --filter provided, first fetch matching titles, then search within those
+  // For now, semantic search covers the whole index; --filter is future work
+  // (would need per-search DB filtering by title list)
+
+  const results = await sem.search({
+    query,
+    dbPath,
+    ollamaUrl,
+    limit,
+  });
+
+  out(results);
+}
+
+async function cmdReindex(baseUrl, wikiName, wikiConfig, args) {
+  const force = args.includes("--force");
+  const statusOnly = args.includes("--status");
+  const dbPath = requireEmbeddingsDb(wikiConfig, wikiName);
+  const ollamaUrl = getOllamaUrl(wikiConfig);
+
+  const sem = await loadSemantic();
+
+  const result = await sem.reindex({
+    dbPath,
+    ollamaUrl,
+    force,
+    statusOnly,
+    fetchFilter: (filter, includeText) => apiFilter(baseUrl, wikiConfig, filter, includeText),
+    fetchTiddler: (title) => apiGet(baseUrl, wikiConfig, title),
+    onProgress: (msg) => process.stderr.write(msg + "\n"),
+  });
+
+  out(result);
+}
+
 async function cmdStatus(baseUrl, wiki, wikiConfig) {
   try {
     // Quick reachability check + count (metadata only, no text)
@@ -344,6 +418,13 @@ async function cmdStatus(baseUrl, wiki, wikiConfig) {
       try {
         await readFile(wikiConfig.embeddings_db);
         info.embeddings_available = true;
+        // Try to get detailed stats if deps available
+        try {
+          const sem = await import("./lib/semantic.js");
+          info.embeddings = await sem.status({ dbPath: wikiConfig.embeddings_db });
+        } catch {
+          // Optional deps not installed — that's fine
+        }
       } catch {
         info.embeddings_available = false;
       }
@@ -403,6 +484,8 @@ Commands:
       [--tags '<tags>'] [--type <type>] [--field key=value ...]
   diff '<title>' --text '...' | --file <path>
   delete '<title>'
+  semantic '<query>' [--limit N]       Semantic search (requires npm install)
+  reindex [--force] [--status]         Update embeddings index
   status
 
 Wiki names come from wikis.json (searched: ./wikis.json, ~/.config/tw/wikis.json, <skill-dir>/wikis.json)`;
@@ -449,8 +532,10 @@ async function main() {
       await cmdStatus(baseUrl, wikiName, wikiConfig);
       break;
     case "semantic":
+      await cmdSemantic(baseUrl, wikiName, wikiConfig, rest);
+      break;
     case "reindex":
-      die(`"${command}" requires optional dependencies. Run: npm install`);
+      await cmdReindex(baseUrl, wikiName, wikiConfig, rest);
       break;
     default:
       die(`Unknown command: ${command}\n\n${USAGE}`);
