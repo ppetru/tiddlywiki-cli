@@ -1,0 +1,20 @@
+{
+  "name": "tiddlywiki-cli",
+  "version": "0.1.0",
+  "description": "CLI for TiddlyWiki HTTP API — CRUD, diff, semantic search",
+  "type": "module",
+  "bin": {
+    "tw": "./tw.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.0.0",
+    "sqlite-vec": "^0.1.0"
+  },
+  "pi": {
+    "skill": true
+  },
+  "license": "MIT"
+}
