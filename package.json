@@ -14,8 +14,10 @@
     "gpt-tokenizer": "^2.0.0",
     "sqlite-vec": "^0.1.0"
   },
-  "agentskills": {
-    "skill": true
+  "keywords": ["pi-package"],
+  "pi": {
+    "skills": ["SKILL.md"],
+    "extensions": []
   },
   "license": "MIT"
 }
