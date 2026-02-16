@@ -8,6 +8,16 @@ agentskills.io: true
 
 CLI tool for TiddlyWiki's HTTP API. Zero dependencies for CRUD; optional deps for semantic search.
 
+## Invocation
+
+`tw` is a Node.js script (`tw.js`) in this skill's directory. Invoke it as:
+
+```bash
+node <skill-dir>/tw.js <wiki> <command> [args...]
+```
+
+All examples below use `tw` as shorthand.
+
 ## CLI Reference
 
 ```
