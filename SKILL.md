@@ -27,9 +27,11 @@ Wiki names come from `wikis.json` (search: `./wikis.json` → `~/.config/tw/wiki
 ### Output Format
 
 - All commands output JSON except `diff` (unified diff text to stdout)
-- `filter`: array of `{title, tags, modified, type, ...}` — no `text` unless `--text`
-- `filter --text` / `get`: full tiddler objects including `text`
+- `filter`: array of `{title, tags, modified, type, ...}` — custom fields **flat** at top level, no `text` unless `--text`
+- `get`: full tiddler object — custom fields in a **`fields` sub-object**, not top-level
 - `put` / `delete`: `{"ok": true, "title": "...", "action": "created|updated|deleted"}`
+
+**⚠️ API format note for direct HTTP use:** The `filter` endpoint returns custom fields at the top level (`{title, water_needs, ...}`), but `GET /tiddlers/:title` nests them (`{title, fields: {water_needs, ...}}`). The `tw` CLI normalizes this — `--field` on `put` writes to the correct location. If scripting against the HTTP API directly, update the `fields` sub-object for existing tiddlers.
 
 ### Workflow Rules
 

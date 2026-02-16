@@ -261,6 +261,9 @@ async function cmdPut(baseUrl, wiki, wikiConfig, args) {
     if (opts.type !== undefined) tiddler.type = opts.type;
     for (const [k, v] of Object.entries(opts.fields)) {
       tiddler[k] = v;
+      // Also update the fields sub-object (TiddlyWiki GET returns custom
+      // fields there; PUT uses it as the authoritative source)
+      if (tiddler.fields) tiddler.fields[k] = v;
     }
   } else {
     // Create: new tiddler with defaults
